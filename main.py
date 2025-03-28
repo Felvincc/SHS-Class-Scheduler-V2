@@ -1,3 +1,13 @@
 import sqlite3
 
-conn = sqlite3.connect('data.db')
+connect = sqlite3.connect('data.db')
+
+c = connect.cursot()
+
+c.execute("""
+
+CREATE TABLE 
+
+
+""")
+
