@@ -3,6 +3,18 @@
 
 import cmd
 import os
+import sqlite3
+
+conn = sqlite3.connect("data.db")
+cursor = conn.cursor()
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS saves(
+        save_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        save_name TEXT NOT NULL
+    )""")
+
+conn.commit()
 
 class MyCommand(cmd.Cmd):
     prompt = "Scheduler> "
@@ -23,19 +35,24 @@ class MyCommand(cmd.Cmd):
         print("Please keep spelling the same and consistent.")
         print("Write 'next', when you are finished entering the data for the current field.")
 
-        instructor_data = [] # [instructor, subject, subject,...]
+        save_name = input("Enter save name> ")
+
+        cursor.execute("INSERT INTO saves (save_name)")
+        cursor.commit()
+
+        instructor_data = [] # [[instructor, subject, subject,...]]
         while condition:
             temp_instructor_subject = []
-            temp_instructor = input("Enter Instructor's name> ")
+            temp_instructor = input("Enter Instructor's name> ").lower()
             
             if temp_instructor == "next":
                 temp_instructor = []
                 break
             else:
 
-                temp_instructor_subject.append(temp_instructor)
+                temp_instructor_subject.append([temp_instructor])
                 while condition:
-                    subject = input("Enter the Subjects teach> ")
+                    subject = input("Enter the Subjects teach> ").lower()
 
                     if subject == "next":
                         subject = []
@@ -47,15 +64,15 @@ class MyCommand(cmd.Cmd):
         course_data = [] #[course, number of sections, [subject, subject, ...]]
         while condition:
             subjects = []
-            temp_course = input("Enter course name> ")
+            temp_course = input("Enter course name> ").lower()
             if temp_course == "next":
                 temp_course = []
                 break
             else:
-                temp_num_sections = input("Enter the number of sections in this course> ")
+                temp_num_sections = int(input("Enter the number of sections in this course> "))
 
                 while condition:
-                    temp_subject = input("Enter the subjects in this course> ")     
+                    temp_subject = input("Enter the subjects in this course> ").lower()     
 
                     if temp_subject == "next":
                         temp_subject = []
@@ -65,9 +82,9 @@ class MyCommand(cmd.Cmd):
                     else:
                         subjects.append(temp_subject)
 
-        address_data = [] # []
+        address_data = [] # [ [building, num_floors, [ [f1 rooms], [f2 rooms], [f3 rooms] ] ], [...]] ] <--may be written wrong, fix later
         while condition:
-            temp_building = input("Enter building name> ")
+            temp_building = input("Enter building name> ").lower()
 
             if temp_building == "next":
                 break
@@ -79,7 +96,7 @@ class MyCommand(cmd.Cmd):
                     temp_rooms = []
 
                     while condition:
-                        temp_room = input(f"Enter the rooms in floor {x+1}> ")
+                        temp_room = input(f"Enter the rooms in floor {x+1}> ").lower()
 
                         if temp_room == "next":
                              
@@ -96,16 +113,38 @@ class MyCommand(cmd.Cmd):
         amslots = int(input("Enter AM slots> "))
         pmslots = int(input("Enter PM slots> "))
 
+        instructor_availability_condition = input("Do you want to add instructor availabilty? (Y/N)> ").lower()
+
+        if instructor_availability_condition == 'y':
+            pass
+        else:
+            pass
+
+        cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {save_name}(
+            instructor_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL)
+        """)
+
+        cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {save_name}_subjects(
+            instructor_id INTEGER,
+            subject TEXT NOT NULL,
+            FOREIGN KEY (instructor_id) REFERENCES {save_name}(instructor_id))
+        """)
+
+        for instructor in instructor_data:
+
+            cursor.execute(f"INSERT INTO {save_name} (name) VALUES (?)", (instructor[0])) 
+
+            
+
+
         cls()
 
-        print(temp_course)
-        print(instructor_data)
-        print(address_data)
-
-        
-
-                    
-
+        #print(temp_course)
+        #print(instructor_data)
+        #print(address_data)
                 
     def do_seedata(self, arg):
         commands = {

@@ -1,13 +1,9 @@
 import sqlite3
+import CLI
 
 connect = sqlite3.connect('data.db')
 
-c = connect.cursot()
+c = connect.cursor()
 
-c.execute("""
-
-CREATE TABLE 
-
-
-""")
+CLI()
 
