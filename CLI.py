@@ -8,7 +8,7 @@ import sqlite3
 conn = sqlite3.connect("data.db")
 cursor = conn.cursor()
 
-cursor.execute("""
+cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS saves(
         save_id INTEGER PRIMARY KEY AUTOINCREMENT,
         save_name TEXT NOT NULL
@@ -37,10 +37,10 @@ class MyCommand(cmd.Cmd):
 
         save_name = input("Enter save name> ")
 
-        cursor.execute("INSERT INTO saves (save_name)")
-        cursor.commit()
+        cursor.execute(f"INSERT INTO saves (save_name) VALUES ('{save_name}')")
+        conn.commit()
 
-        instructor_data = [] # [[instructor, subject, subject,...]]
+        instructors_data = [] # [[instructor, [subject, subject]],...]
         while condition:
             temp_instructor_subject = []
             temp_instructor = input("Enter Instructor's name> ").lower()
@@ -49,17 +49,18 @@ class MyCommand(cmd.Cmd):
                 temp_instructor = []
                 break
             else:
-
-                temp_instructor_subject.append([temp_instructor])
+                temp = []
+                temp_instructor_subject.append(temp_instructor)
                 while condition:
                     subject = input("Enter the Subjects teach> ").lower()
 
                     if subject == "next":
                         subject = []
-                        instructor_data.append(temp_instructor_subject)
+                        temp_instructor_subject.append(temp)
+                        instructors_data.append(temp_instructor_subject)
                         break
                     else:
-                        temp_instructor_subject.append(subject)
+                        temp.append(subject)
 
         course_data = [] #[course, number of sections, [subject, subject, ...]]
         while condition:
@@ -94,12 +95,9 @@ class MyCommand(cmd.Cmd):
 
                 for x in range(num_of_floors):
                     temp_rooms = []
-
                     while condition:
                         temp_room = input(f"Enter the rooms in floor {x+1}> ").lower()
-
                         if temp_room == "next":
-                             
                             rooms.append(temp_rooms)
                             break
 
@@ -121,10 +119,11 @@ class MyCommand(cmd.Cmd):
             pass
 
         cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {save_name}(
+        CREATE TABLE IF NOT EXISTS {save_name}_instructors(
             instructor_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL)
         """)
+        conn.commit()
 
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_subjects(
@@ -132,15 +131,23 @@ class MyCommand(cmd.Cmd):
             subject TEXT NOT NULL,
             FOREIGN KEY (instructor_id) REFERENCES {save_name}(instructor_id))
         """)
+        conn.commit()
 
-        for instructor in instructor_data:
+        
+        for instructor in instructors_data:
+            cursor.execute(f"INSERT INTO {save_name}_instructors (name) VALUES ('{instructor[0]}')") 
+            conn.commit()
 
-            cursor.execute(f"INSERT INTO {save_name} (name) VALUES (?)", (instructor[0])) 
+        for i, instructor_data in enumerate(instructors_data):
+            instructor_id = i + 1
+            for subject in instructor_data[1]:
+                cursor.execute(f"INSERT INTO {save_name}_subjects (instructor_id, subject) VALUES ('{instructor_id}', '{subject}')")
+        conn.commit()
+
+        # make Course and Building Address insert queries 
 
             
 
-
-        cls()
 
         #print(temp_course)
         #print(instructor_data)
