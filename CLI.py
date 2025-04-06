@@ -7,17 +7,15 @@ import sqlite3
 
 conn = sqlite3.connect("data.db")
 cursor = conn.cursor()
-
 cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS saves(
         save_id INTEGER PRIMARY KEY AUTOINCREMENT,
         save_name TEXT NOT NULL
     )""")
-
 conn.commit()
 
 class MyCommand(cmd.Cmd):
-    prompt = "Scheduler> "
+    prompt = "jmdy_scheduler_v2> "
 
     def do_quit(self, arg):
         '''Exits Program'''
@@ -83,7 +81,7 @@ class MyCommand(cmd.Cmd):
                     else:
                         subjects.append(temp_subject)
 
-        address_data = [] # [ [building, num_floors, [ [f1 rooms], [f2 rooms], [f3 rooms] ] ], [...]] ] <--may be written wrong, fix later
+        address_data = [] # [building, num_floors, [ [f1 rooms], [f2 rooms], [f3 rooms] ] ], [...]]
         while condition:
             temp_building = input("Enter building name> ").lower()
 
@@ -123,14 +121,14 @@ class MyCommand(cmd.Cmd):
             instructor_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL)
         """)
-        conn.commit()
 
         cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {save_name}_subjects(
+        CREATE TABLE IF NOT EXISTS {save_name}_instructors_subjects(
             instructor_id INTEGER,
             subject TEXT NOT NULL,
             FOREIGN KEY (instructor_id) REFERENCES {save_name}(instructor_id))
         """)
+
         conn.commit()
 
         
@@ -141,10 +139,30 @@ class MyCommand(cmd.Cmd):
         for i, instructor_data in enumerate(instructors_data):
             instructor_id = i + 1
             for subject in instructor_data[1]:
-                cursor.execute(f"INSERT INTO {save_name}_subjects (instructor_id, subject) VALUES ('{instructor_id}', '{subject}')")
+                cursor.execute(f"INSERT INTO {save_name}_instructors_subjects (instructor_id, subject) VALUES ('{instructor_id}', '{subject}')")
         conn.commit()
 
-        # make Course and Building Address insert queries 
+        #[course, number of sections, [subject, subject, ...]]
+        cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {save_name}_courses(
+            course_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course TEXT NOT NULL,
+            num_sections INTEGER NOT NULL
+            )""")
+        
+        for course in course_data:
+            cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {save_name}_{course[0]}_subjects(
+                subject_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                subject TEXT NOT NULL
+            )""")
+            cursor.execute(f"INSERT INTO {save_name}_courses (course, num_sections) VALUES ('{course[0]}', '{course[1]}')")
+            for subject in course[2]:
+                cursor.execute(f"INSERT INTO {save_name}_{course[0]}_subjects (subject) VALUES ('{subject}')")
+        conn.commit()
+
+        # [building, num_floors, [ [f1 rooms], [f2 rooms], [f3 rooms] ] ], [...]]
+        # make Building Address insert queries 
 
             
 
