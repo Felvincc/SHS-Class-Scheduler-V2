@@ -81,7 +81,7 @@ class MyCommand(cmd.Cmd):
                     else:
                         subjects.append(temp_subject)
 
-        address_data = [] # [building, num_floors, [ [f1 rooms], [f2 rooms], [f3 rooms] ] ], [...]]
+        address_data = [] # [building, num_floors, [rooms], [...]]
         while condition:
             temp_building = input("Enter building name> ").lower()
 
@@ -92,19 +92,19 @@ class MyCommand(cmd.Cmd):
                 rooms = []
 
                 for x in range(num_of_floors):
-                    temp_rooms = []
                     while condition:
                         temp_room = input(f"Enter the rooms in floor {x+1}> ").lower()
                         if temp_room == "next":
-                            rooms.append(temp_rooms)
                             break
 
                         else:
-                            temp_rooms.append(temp_room)
+                            rooms.append(temp_room)
                 
                 temp_address_data = [temp_building, num_of_floors, rooms]
             
             address_data.append(temp_address_data)
+
+        print(address_data)
 
         amslots = int(input("Enter AM slots> "))
         pmslots = int(input("Enter PM slots> "))
@@ -161,8 +161,30 @@ class MyCommand(cmd.Cmd):
                 cursor.execute(f"INSERT INTO {save_name}_{course[0]}_subjects (subject) VALUES ('{subject}')")
         conn.commit()
 
-        # [building, num_floors, [ [f1 rooms], [f2 rooms], [f3 rooms] ] ], [...]]
+        # [building, num_floors, [rooms]], address_data
         # make Building Address insert queries 
+
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {save_name}_buildings(
+                building_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                building TEXT NOT NULL,
+                num_floors INTEGER NOT NULL
+            )""")
+        conn.commit()
+
+        for address in address_data:
+            cursor.execute(f"INSERT INTO {save_name}_buildings (building, num_floors) VALUES ('{address[0]}', '{address[1]}')")
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {address[0]}_rooms(
+                    room_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    room TEXT NOT NULL)
+                           """)
+            
+            for room in address[2]:
+                cursor.execute(f"INSERT INTO {address[0]}_rooms (room) VALUES ('{room}')")
+            conn.commit()
+            
+
 
             
 
