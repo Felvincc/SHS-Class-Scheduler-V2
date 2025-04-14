@@ -17,16 +17,19 @@ conn.commit()
 class MyCommand(cmd.Cmd):
     prompt = "jmdy_scheduler_v2> "
 
-    def do_quit(self, arg):
-        '''Exits Program'''
+    def do_exit(self, arg):
+        '''are you dumb'''
         return True
 
     def do_generate(self, arg):
-        '''Generates Class Schedules'''
+        '''Generates class schedules
+Usage: generate <save name>'''
         pass
 
     def do_inputdata(self, arg):
-        '''This is where you input the data for the generating class schedules'''
+        '''Starts the data gathering process
+Usage: inputdata'''
+
         condition = True
         cls()
 
@@ -117,6 +120,12 @@ class MyCommand(cmd.Cmd):
             pass
 
         cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {save_name}_ampm_slots(
+            am_slot INTEGER NOT NULL,
+            pm_slot INTEGER NOT NULL)
+        """)
+
+        cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_instructors(
             instructor_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL)
@@ -129,12 +138,24 @@ class MyCommand(cmd.Cmd):
             FOREIGN KEY (instructor_id) REFERENCES {save_name}(instructor_id))
         """)
 
+        cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {save_name}_courses(
+            course_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course TEXT NOT NULL,
+            num_sections INTEGER NOT NULL
+        )""")
+        
+        cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {save_name}_buildings(
+            building_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            building TEXT NOT NULL,
+            num_floors INTEGER NOT NULL
+        )""")
         conn.commit()
-
         
         for instructor in instructors_data:
             cursor.execute(f"INSERT INTO {save_name}_instructors (name) VALUES ('{instructor[0]}')") 
-            conn.commit()
+        conn.commit()
 
         for i, instructor_data in enumerate(instructors_data):
             instructor_id = i + 1
@@ -143,13 +164,6 @@ class MyCommand(cmd.Cmd):
         conn.commit()
 
         #[course, number of sections, [subject, subject, ...]]
-        cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS {save_name}_courses(
-            course_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            course TEXT NOT NULL,
-            num_sections INTEGER NOT NULL
-            )""")
-        
         for course in course_data:
             cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {save_name}_{course[0]}_subjects(
@@ -162,70 +176,101 @@ class MyCommand(cmd.Cmd):
         conn.commit()
 
         # [building, num_floors, [rooms]], address_data
-        # make Building Address insert queries 
-
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {save_name}_buildings(
-                building_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                building TEXT NOT NULL,
-                num_floors INTEGER NOT NULL
-            )""")
-        conn.commit()
-
         for address in address_data:
             cursor.execute(f"INSERT INTO {save_name}_buildings (building, num_floors) VALUES ('{address[0]}', '{address[1]}')")
             cursor.execute(f"""
-                CREATE TABLE IF NOT EXISTS {address[0]}_rooms(
-                    room_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    room TEXT NOT NULL)
-                           """)
+            CREATE TABLE IF NOT EXISTS {save_name}_{address[0]}_rooms(
+                room_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                room TEXT NOT NULL)
+                """)
             
             for room in address[2]:
-                cursor.execute(f"INSERT INTO {address[0]}_rooms (room) VALUES ('{room}')")
+                cursor.execute(f"INSERT INTO {save_name}_{address[0]}_rooms (room) VALUES ('{room}')")
             conn.commit()
-            
+        
+        cursor.execute(f"INSERT INTO {save_name}_ampm_slots (am_slot, pm_slot) VALUES ('{amslots}', '{pmslots}')")
 
 
             
 
 
-        #print(temp_course)
-        #print(instructor_data)
-        #print(address_data)
                 
     def do_seedata(self, arg):
+        '''Shows data from a specific save\n
+Usage: 
+seedata <save name> <data>          - View specific data from save
+seedata saves                       - View all save files
+
+Available data types: \nsaves \ninstructors  \ncourse \naddress \nslots \nsubjects '''
+
         commands = {
-            "instructors": self.show_instructors,
-            "course": self.show_levels,
-            "address": self.show_address,
-            "amslots": self.show_amslots,
-            "pmslots": self.show_pmslots,
-            "subjects": self.show_subjects
+            "instructors": self.see_instructors,
+            "course": self.see_courses,
+            "address": self.see_address,
+            "slots": self.see_amslots,
+            "subjects": self.see_subjects
         }
 
-        command = commands.get(arg.strip(), self.invalid_input)
-        command()
+        if arg == "saves":
+            cursor.execute(f"SELECT * FROM saves")
+            rows = cursor.fetchall()
+            for row in rows:
+                print(row)
+            conn.commit()
+            return
 
-    def invalid_input(self):
-        print("Invalid input, try again")
+        try:
+            save_name, data_type = arg.split()
+            rows = commands[data_type](save_name)
+            for row in rows:
+                print(row)
+            
+        except ValueError:
+            print("Usage: seedata <save_name> <data>")
+            return
 
-    def show_instructors(self):
-        print("the sky falls when")
+        
+
+        if data_type in commands:
+            commands[data_type](save_name)
+        else:
+            print(f"Unknown data type: {data_type}")
+
+    def see_instructors(self, save_name):
+        cursor.execute(f"SELECT * FROM {save_name}_instructors")
+        return cursor.fetchall()
+
+    def see_courses(self, save_name):
+        cursor.execute(f"SELECT * FROM {save_name}_courses")
+        return cursor.fetchall()
+
+    def see_address(self, save_name):
+        cursor.execute(f"SELECT * FROM {save_name}_buildings")
+        temp = cursor.fetchall()
+        buildings = []
+        address = []
+        for val in temp:
+            buildings.append([val[1]])
+        for idx, building in enumerate(buildings):
+            cursor.execute(f"SELECT * FROM {save_name}_{building[0]}_rooms")
+            temp = cursor.fetchall()
+            address.append([building])
+            for x in temp:
+                address[idx].append(x[1])
+        return address
+                
+
+        
+
+        return 
+
+    def see_amslots(self):
         pass
 
-    def show_levels(self):
+    def see_pmslots(self):
         pass
 
-    def show_address(self):
-        pass
-
-    def show_amslots(self):
-        pass
-
-    def show_pmslots(self):
-        pass
-
-    def show_subjects(self):
+    def see_subjects(self):
         pass
 
 def cls():
