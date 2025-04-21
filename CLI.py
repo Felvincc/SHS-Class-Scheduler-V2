@@ -7,6 +7,8 @@ import sqlite3
 
 conn = sqlite3.connect("data.db")
 cursor = conn.cursor()
+
+cursor.execute("PRAGMA foreign_keys = ON;")
 cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS saves(
         save_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,42 +121,58 @@ Usage: inputdata'''
         else:
             pass
 
+        cursor.execute(f"SELECT * FROM saves WHERE save_name = '{save_name}'")
+        save_id = cursor.fetchall()[0][0]
+        print(save_id)
+
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_ampm_slots(
+            save_id INTEGER,
             am_slot INTEGER NOT NULL,
-            pm_slot INTEGER NOT NULL)
+            pm_slot INTEGER NOT NULL,
+            FOREIGN KEY (save_id) REFERENCES saves(save_id) ON DELETE CASCADE
+            )
         """)
 
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_instructors(
             instructor_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL)
+            save_id INTEGER,
+            name TEXT NOT NULL,
+            FOREIGN KEY (save_id) REFERENCES saves(save_id) ON DELETE CASCADE)
         """)
 
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_instructors_subjects(
             instructor_id INTEGER,
             subject TEXT NOT NULL,
-            FOREIGN KEY (instructor_id) REFERENCES {save_name}(instructor_id))
+            FOREIGN KEY (instructor_id) REFERENCES {save_name}_instructors(instructor_id) ON DELETE CASCADE)
         """)
 
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_courses(
             course_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            save_id INTEGER,
             course TEXT NOT NULL,
-            num_sections INTEGER NOT NULL
+            num_sections INTEGER NOT NULL,
+            FOREIGN KEY (save_id) REFERENCES saves(save_id) ON DELETE CASCADE
         )""")
         
         cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS {save_name}_buildings(
             building_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            save_id INTEGER,
             building TEXT NOT NULL,
-            num_floors INTEGER NOT NULL
+            num_floors INTEGER NOT NULL,
+            FOREIGN KEY (save_id) REFERENCES saves(save_id) ON DELETE CASCADE
         )""")
         conn.commit()
+
+        cursor.execute(f"INSERT INTO {save_name}_ampm_slots (am_slot, pm_slot, save_id) VALUES ({amslots}, {pmslots}, {save_id})") 
+
         
         for instructor in instructors_data:
-            cursor.execute(f"INSERT INTO {save_name}_instructors (name) VALUES ('{instructor[0]}')") 
+            cursor.execute(f"INSERT INTO {save_name}_instructors (name, save_id) VALUES ('{instructor[0]}', '{save_id}')") 
         conn.commit()
 
         for i, instructor_data in enumerate(instructors_data):
@@ -168,9 +186,11 @@ Usage: inputdata'''
             cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {save_name}_{course[0]}_subjects(
                 subject_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                subject TEXT NOT NULL
+                course_id INTEGER,
+                subject TEXT NOT NULL,
+                FOREIGN KEY (course_id) REFERENCES {save_name}_courses(course_id) ON DELETE CASCADE
             )""")
-            cursor.execute(f"INSERT INTO {save_name}_courses (course, num_sections) VALUES ('{course[0]}', '{course[1]}')")
+            cursor.execute(f"INSERT INTO {save_name}_courses (course, num_sections, save_id) VALUES ('{course[0]}', '{course[1]}', '{save_id}')")
             for subject in course[2]:
                 cursor.execute(f"INSERT INTO {save_name}_{course[0]}_subjects (subject) VALUES ('{subject}')")
         conn.commit()
@@ -181,7 +201,9 @@ Usage: inputdata'''
             cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {save_name}_{address[0]}_rooms(
                 room_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                room TEXT NOT NULL)
+                building_id INTEGER,
+                room TEXT NOT NULL,
+                FOREIGN KEY (building_id) REFERENCES {save_name}_buildings(building_id) ON DELETE CASCADE)
                 """)
             
             for room in address[2]:
@@ -190,11 +212,7 @@ Usage: inputdata'''
         
         cursor.execute(f"INSERT INTO {save_name}_ampm_slots (am_slot, pm_slot) VALUES ('{amslots}', '{pmslots}')")
 
-
-            
-
-
-                
+     
     def do_seedata(self, arg):
         '''Shows data from a specific save\n
 Usage: 
@@ -228,14 +246,13 @@ Available data types: \nsaves \ninstructors  \ncourse \naddress \nslots \nsubjec
         except ValueError:
             print("Usage: seedata <save_name> <data>")
             return
-
-        
-
-        if data_type in commands:
-            commands[data_type](save_name)
-        else:
-            print(f"Unknown data type: {data_type}")
-
+        except KeyError:
+            print(f"Data type, '{data_type}', does not exist")
+            return
+        except sqlite3.OperationalError:
+            print(f"Save file, '{save_name}', does not exist ")
+            return
+    
     def see_instructors(self, save_name):
         cursor.execute(f"SELECT * FROM {save_name}_instructors")
         return cursor.fetchall()
@@ -259,16 +276,18 @@ Available data types: \nsaves \ninstructors  \ncourse \naddress \nslots \nsubjec
                 address[idx].append(x[1])
         return address
                 
+    def see_amslots(self, save_name):
+        cursor.execute(f"SELECT * FROM {save_name}_ampm_slots")
+        rows = cursor.fetchall()
+        am_slots = [row['am_slot'] for row in rows]
+        return am_slots
 
+    def see_pmslots(self, save_name):
+        cursor.execute(f"SELECT * FROM {save_name}_ampm_slots")
+        rows = cursor.fetchall()
+        am_slots = [row['pm_slot'] for row in rows]
+        return am_slots
         
-
-        return 
-
-    def see_amslots(self):
-        pass
-
-    def see_pmslots(self):
-        pass
 
     def see_subjects(self):
         pass
