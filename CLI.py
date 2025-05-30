@@ -39,7 +39,7 @@ Usage: inputdata'''
         print("Please keep spelling the same and consistent.")
         print("Write 'next', when you are finished entering the data for the current field.")
 
-        data = Data_management()
+        data = DataManagement()
         save_name = data.input_saves()
 
         cursor.execute(f"INSERT INTO saves (save_name) VALUES ('{save_name}')")
@@ -58,9 +58,9 @@ Usage: inputdata'''
         
         cursor.execute("INSERT INTO ampm (save_id, am_slot, pm_slot) VALUES (?, ?, ?)", (save_id, amslots, pmslots))
 
-        data.instructors(save_id, instructors_data)
-        data.course(save_id, course_data)
-        data.address(save_id, address_data)
+        data.commit_instructors(save_id, instructors_data)
+        data.commit_course(save_id, course_data)
+        data.commit_address(save_id, address_data)
         conn.commit()  
 
 
@@ -147,9 +147,9 @@ class Queries:
         cursor.execute("SELECT * FROM subjects WHERE save_id = ?", (save_id,))
         return cursor.fetchall()
 
-class Data_management:
+class DataManagement:
     
-    def instructors(self, save_id, instructors_data):
+    def commit_instructors(self, save_id, instructors_data):
         for x in instructors_data:
             instructor = x[0]
             subjects = x[1]
@@ -167,7 +167,7 @@ class Data_management:
         return
 
 
-    def course(self, save_id, course_data):
+    def commit_course(self, save_id, course_data):
         for x in course_data:
             course_name = x[0]
             course_sections = x[1]
@@ -187,7 +187,7 @@ class Data_management:
         return
 
 
-    def address(self, save_id, address_data):
+    def commit_address(self, save_id, address_data):
         for x in address_data:
             building_name = x[0]
             num_floors = x[1]
@@ -332,7 +332,7 @@ class Data_management:
                 subject_id INTEGER NOT NULL,
                 PRIMARY KEY (course_id, subject_id),
                 FOREIGN KEY (course_id) REFERENCES courses(course_id) ON DELETE CASCADE,
-                FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
+                FOREIGN KEY (subject_id) REFERENCES subjects(subject_id) ON DELETE CASCADE
                 )
             """)
         
@@ -352,7 +352,7 @@ class Data_management:
                 subject_id INTEGER NOT NULL,
                 PRIMARY KEY (instructor_id, subject_id),
                 FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE,
-                FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
+                FOREIGN KEY (subject_id) REFERENCES subjects(subject_id) ON DELETE CASCADE
                 )
             """)
         
