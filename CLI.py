@@ -28,6 +28,9 @@ class MyCommand(cmd.Cmd):
 Usage: generate <save name>'''
         pass
 
+    def do_modifydata(self, arg):
+        commands = {}
+
     def do_inputdata(self, arg):
         '''Starts the data gathering process
 Usage: inputdata'''
@@ -62,7 +65,6 @@ Usage: inputdata'''
         data.commit_course(save_id, course_data)
         data.commit_address(save_id, address_data)
         conn.commit()  
-
 
     def do_seedata(self, arg):
         '''Shows data from a specific save\n
@@ -130,7 +132,6 @@ class Queries:
         cursor.execute("SELECT * FROM buildings WHERE save_id = ?", (save_id,))
         return cursor.fetchall()
 
-    # NOT DONE
     def see_buildings(self, save_id):
         cursor.execute("SELECT * FROM buildings WHERE save_id = ?", (save_id,))
         return cursor.fetchall()
@@ -159,11 +160,11 @@ class DataManagement:
 
             for sub in subjects:
                 cursor.execute("INSERT INTO subjects(save_id, subject_name) VALUES (?, ?) ON CONFLICT (save_id, subject_name) DO NOTHING", (save_id, sub))
-                cursor.execute("SELECT subject_id FROM subjects WHERE subject_name = ?", (sub,))
+                cursor.execute("SELECT subject_id FROM subjects WHERE subject_name = ? AND save_id = ?", (sub, save_id,))
 
                 result = cursor.fetchone()
                 subject_id = result[0]
-                cursor.execute("INSERT INTO instructor_subjects(instructor_id, subject_id) VALUES (?, ?)", (instructor_id, subject_id))
+                cursor.execute("INSERT INTO instructor_subjects(instructor_id, save_id, subject_id) VALUES (?, ?, ?)", (instructor_id, save_id, subject_id))
         return
 
 
@@ -179,11 +180,11 @@ class DataManagement:
 
             for sub in course_subjects:
                 cursor.execute("INSERT INTO subjects(save_id, subject_name) VALUES (?, ?) ON CONFLICT (save_id, subject_name) DO NOTHING", (save_id, sub))
-                cursor.execute("SELECT subject_id FROM subjects WHERE subject_name = ?", (sub,))
+                cursor.execute("SELECT subject_id FROM subjects WHERE subject_name = ? AND save_id = ?", (sub, save_id,))
 
                 result = cursor.fetchone()
                 subject_id = result[0]
-                cursor.execute("INSERT INTO course_subjects(course_id, subject_id) VALUES (?, ?)", (course_id, subject_id))
+                cursor.execute("INSERT INTO course_subjects(course_id, save_id, subject_id) VALUES (?, ?, ?)", (course_id, save_id, subject_id))
         return
 
 
@@ -329,6 +330,7 @@ class DataManagement:
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS course_subjects(
                 course_id INTEGER NOT NULL,
+                save_id INTEGER NOT NULL,
                 subject_id INTEGER NOT NULL,
                 PRIMARY KEY (course_id, subject_id),
                 FOREIGN KEY (course_id) REFERENCES courses(course_id) ON DELETE CASCADE,
@@ -349,6 +351,7 @@ class DataManagement:
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS instructor_subjects(
                 instructor_id INTEGER NOT NULL,
+                save_id INTEGER NOT NULL,
                 subject_id INTEGER NOT NULL,
                 PRIMARY KEY (instructor_id, subject_id),
                 FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE,
