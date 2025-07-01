@@ -6,8 +6,8 @@ cursor = conn.cursor()
 
 # SEPARATE INTO DIFFERENT FILES IF IT GETS TOO BIG
 
-class Generate():
-
+class Schedule():
+    
     def __init__(self, save_name):
         self.save_name = save_name
         cursor.execute("SELECT save_id FROM saves WHERE save_name = ?", (save_name,))
@@ -15,14 +15,51 @@ class Generate():
         fetch = Fetch()
         self.ampm = fetch.fetch_ampm(save_id)
         self.courses = fetch.fetch_courses(save_id)
-        self.courses = fetch.fetch_subjects(save_id)
+        self.subjects = fetch.fetch_subjects(save_id)
         self.course_subjects = fetch.fetch_course_subjects(save_id)
         self.instructors = fetch.fetch_instructors(save_id)
         self.instructors_subjects = fetch.fetch_instructor_subjects(save_id)
         self.buildings = fetch.fetch_buildings(save_id)
         self.rooms = fetch.fetch_rooms(save_id)
 
+    def generate(self):
+        room_schedules = {}
+        for room_id in self.rooms:
+            room_schedules[room_id] = Section.init_schedule(self, self.ampm)
 
+        # idx for sectiond id starts at 1, incase of future database for schedules
+        # course_id is created via iteration, not through a db query. So if there are issues with desync, it probaby stems here
+        section_list = []
+        for (section_id, (course_id, (course_name, num_sections))) in enumerate(self.courses.items(), start = 1):
+            for section_num in range(1, num_sections+1):
+                section = Section(self.ampm)
+                section.course = course_name
+                section.course_id = section_id
+                section.section_id = section_num
+                section_list.append(section)
+        pass
+
+class Section():
+
+    def __init__(self, slots):
+        self.course_id = None
+        self.section_id = None
+        self.course = None
+        self.schedule = self.init_schedule(slots)
+
+    def __repr__(self):
+        return f"course_id='{self.course_id}', section_id='{self.section_id}'"
+        
+    def init_schedule(self, slots):
+        am_slot, pm_slot = slots
+        schedule = {'am': [], 'pm': []}
+        for _ in range(am_slot):
+            schedule['am'].append([])
+        for _ in range(pm_slot):
+            schedule['pm'].append([])
+        return schedule
+    
+         
 class Fetch():
 
     def fetch_ampm(self, save_id):
@@ -35,11 +72,11 @@ class Fetch():
             am_slot, pm_slot = None, None
 
     def fetch_courses(self, save_id):
-        cursor.execute("SELECT course_id, course_name FROM courses WHERE save_id = ?", (save_id,))
+        cursor.execute("SELECT course_id, course_name, num_sections FROM courses WHERE save_id = ?", (save_id,))
         rows = cursor.fetchall()
         result = {}
-        for course_id, course_name in rows:
-            result[course_id] = course_name
+        for course_id, course_name, num_section in rows:
+            result[course_id] = (course_name, num_section)
         return result
 
     def fetch_subjects(self, save_id):
@@ -94,6 +131,8 @@ class Fetch():
             result[room_id] = room_name
         return result
 
-Generate('test')
+x = Schedule('test')
+x.generate()
+
 
 #test = Generate()
