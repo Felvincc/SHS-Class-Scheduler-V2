@@ -115,6 +115,36 @@ Available data types: \nsaves \ninstructors  \ncourse \naddress \nbuildings \nro
             print(f"Save file, '{save_name}', does not exist ")
             return
     
+    def do_dupins(self, arg):
+        save_name, input_instructor, multiple = arg.split()
+        multiple = int(multiple)
+
+        cursor.execute("SELECT save_id FROM saves WHERE save_name = ?", (save_name,))
+        save_id = cursor.fetchone()
+
+        cursor.execute("SELECT * FROM instructors WHERE instructor_name = ?", (input_instructor,))
+        instructor_id, save_id, instructor_name =cursor.fetchone()
+
+
+        cursor.execute("SELECT * FROM instructor_subjects WHERE instructor_id = ?", (instructor_id,))
+        rows = cursor.fetchall()
+        print(rows)
+
+        for x in range(1, multiple+1):
+            new_instructor_name = f"{instructor_name}_copy{x}"
+            print(new_instructor_name)
+            cursor.execute("INSERT INTO instructors (save_id, instructor_name) VALUES (?, ?)", (save_id, new_instructor_name))
+            cursor.execute("SELECT instructor_id FROM instructors WHERE instructor_name = ? AND save_id = ?", (new_instructor_name, save_id))
+            instructor_id = cursor.fetchone()[0]
+            
+            for y in rows:
+                
+                _, save_id, subject_id = y
+                cursor.execute("INSERT INTO instructor_subjects VALUES (?, ?, ?)", (instructor_id, save_id, subject_id))
+        conn.commit()
+
+
+
 class Queries:
 
     def __init__(self):

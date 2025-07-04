@@ -1,4 +1,5 @@
 import sqlite3
+import random
 
 conn = sqlite3.connect('data.db')
 
@@ -21,45 +22,89 @@ class Schedule():
         self.instructors_subjects = fetch.fetch_instructor_subjects(save_id)
         self.buildings = fetch.fetch_buildings(save_id)
         self.rooms = fetch.fetch_rooms(save_id)
+    
 
     def generate(self):
+        # creates empty room schedule dictonary
         room_schedules = {}
         for room_id in self.rooms:
-            room_schedules[room_id] = Section.init_schedule(self, self.ampm)
+            room_schedules[room_id] = Helper.init_schedule(self.ampm)
 
-        # idx for sectiond id starts at 1, incase of future database for schedules
+        # creates a dictionary for tracking the subject classes for instructor
+        instructor_subject_counter = {}
+        for instructor_id, subject_ids in self.instructors_subjects.items():
+            instructor_subject_counter[instructor_id] = Helper.dict_mapper(subject_ids)
+
+        subject_schedule_counter = Helper.init_schedule(self.ampm)
+        all_subject_ids = []
+        for x in self.subjects:
+            all_subject_ids.append(x)
+        for period, schedule in subject_schedule_counter.items():
+            for time_slot in schedule:
+                schedule[time_slot] = Helper.dict_mapper(all_subject_ids)
+            
+
+        section_dict = {}
+        section_id = 0
+        # loops to create/assign the individual schedules
+        for course_id, (course_name, num_sections) in self.courses.items():
         # course_id is created via iteration, not through a db query. So if there are issues with desync, it probaby stems here
-        section_list = []
-        for (section_id, (course_id, (course_name, num_sections))) in enumerate(self.courses.items(), start = 1):
             for section_num in range(1, num_sections+1):
-                section = Section(self.ampm)
-                section.course = course_name
-                section.course_id = section_id
-                section.section_id = section_num
-                section_list.append(section)
+                section_id += 1
+                section = Section(self)
+                section.course_id = course_id
+                section.section_num = section_num
+                section.section_id =  section_id
+                self.assign(section, room_schedules)
+                section_dict[section_id] = section
         pass
+
+    # modifies the section object and room_schedules dict for the assignment
+    def assign(self, section, room_schedules):
+        instructor_id_list = []
+        for instructor_id in self.instructors_subjects:
+            instructor_id_list.append(instructor_id)
+        random.shuffle(instructor_id_list)
+
+        for instructor_id in instructor_id_list:
+            instructor_id
+
+
+class Helper():
+
+    def init_schedule(ampm):
+        am_slot, pm_slot = ampm
+        schedule = {}
+        temp = {}
+        for x in range(1, am_slot+1):
+            temp[x] = None
+        schedule['am'] = temp
+
+        temp = {}
+        for x in range(1, pm_slot+1):
+            temp[x] = None
+        schedule['pm'] = temp
+        return schedule
+    
+    def dict_mapper(list):
+        temp = {}
+        for x in list:
+            temp[x] = 0
+        return temp
 
 class Section():
 
-    def __init__(self, slots):
-        self.course_id = None
+    def __init__(self, data):
+        self.course_id = None 
+        self.section_num = None #convert to letters for section name
         self.section_id = None
-        self.course = None
-        self.schedule = self.init_schedule(slots)
+        self.schedule = Helper.init_schedule(data.ampm)
 
     def __repr__(self):
-        return f"course_id='{self.course_id}', section_id='{self.section_id}'"
+        return f"course_id='{self.course_id}', section_num='{self.section_num}', section_id='{self.section_id}'"
         
-    def init_schedule(self, slots):
-        am_slot, pm_slot = slots
-        schedule = {'am': [], 'pm': []}
-        for _ in range(am_slot):
-            schedule['am'].append([])
-        for _ in range(pm_slot):
-            schedule['pm'].append([])
-        return schedule
+
     
-         
 class Fetch():
 
     def fetch_ampm(self, save_id):
@@ -131,7 +176,7 @@ class Fetch():
             result[room_id] = room_name
         return result
 
-x = Schedule('test')
+x = Schedule('test')    
 x.generate()
 
 
