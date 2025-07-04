@@ -143,7 +143,16 @@ Available data types: \nsaves \ninstructors  \ncourse \naddress \nbuildings \nro
                 cursor.execute("INSERT INTO instructor_subjects VALUES (?, ?, ?)", (instructor_id, save_id, subject_id))
         conn.commit()
 
-
+    def do_inputaddress(self, arg):
+        save_name = arg
+        cursor.execute("SELECT save_id FROM saves WHERE save_name = ?", (save_name,))
+        save_id = cursor.fetchone()[0]
+        print(save_id)
+        dm = DataManagement()
+        address_data = dm.input_address()
+        dm.commit_address(save_id, address_data)
+        conn.commit()
+        
 
 class Queries:
 
