@@ -48,6 +48,10 @@ class Schedule():
         for instructor_id, subject_ids in self.instructors_subjects.items():
             self.instructor_subject_counter[instructor_id] = Helper.dict_mapper(subject_ids)
 
+        self.instructor_schedule_counter = {}
+        for instructor_id in self.instructors:
+            self.instructor_schedule_counter[instructor_id] = Helper.init_schedule_bool(self.ampm)
+
         self.subject_schedule_counter = Helper.init_schedule_bool(self.ampm)
         all_subject_ids = []
         for x in self.subjects:
@@ -83,19 +87,73 @@ class Schedule():
         section_subjects = self.course_subjects[course_id]
         section_schedule = Helper.init_schedule_dict(self.ampm)
 
+        iter_section_subjects = section_subjects[:]
+        morning, afternoon = 0, 1
+
+        random.shuffle(iter_section_subjects)
+
+        # dictates when to assign or when to skip time_slot
+        scheduling_tracker = []
+
+        # make a non random look ahead tracker in the future, for now this will work
+        for _ in section_subjects:  
+            scheduling_tracker.append(True)
+        for _ in range(2*(self.ampm[morning]+self.ampm[afternoon]) - len(section_subjects)):
+            scheduling_tracker.append(False)
+        random.shuffle(scheduling_tracker)
+            
         for day, period_and_time_slots in self.room_schedules_tracker.items():
             for time_period, time_slots in period_and_time_slots.items():
                 for time_slot, room_id in time_slots.items():
-                    
-                    the_chosen_room = self.book_and_pop(day, time_period, time_slot)
-                    section_schedule[day][time_period][time_slot]['room'] = the_chosen_room
+                    temp_optimal_subject = 100
+
+                    if not scheduling_tracker[0]:
+                        scheduling_tracker.pop(0)
+                        section_schedule[day][time_period][time_slot]['subject'] = None
+                        section_schedule[day][time_period][time_slot]['room'] = None
+                        continue
+                    scheduling_tracker.pop(0)
+
+                    section_schedule = self.optimal_search(day, time_period, time_slot, iter_section_subjects, section_schedule, temp_optimal_subject)
+
         return section_schedule
                     
     def book_and_pop(self, day, time_period, time_slot):
-        the_chosen_room = self.room_schedules_tracker[day][time_period][time_slot][0]
-        self.room_schedules[the_chosen_room][day][time_period][time_slot] = True  
+        chosen_room_id = self.room_schedules_tracker[day][time_period][time_slot][0]
+        self.room_schedules[chosen_room_id][day][time_period][time_slot] = True  
         self.room_schedules_tracker[day][time_period][time_slot].pop(0)
-        return the_chosen_room
+        return chosen_room_id
+    
+    def optimal_search(self, day, time_period, time_slot, iter_section_subjects, section_schedule, temp_optimal_subject):
+        for idx, subject_id in enumerate(iter_section_subjects):
+
+            subject_counter = self.subject_schedule_counter[day][time_period][time_slot][subject_id]
+            if subject_counter == 0:
+                chosen_subject_id = subject_id
+                self.subject_schedule_counter[day][time_period][time_slot][subject_id] =+ 1
+                section_schedule[day][time_period][time_slot]['subject'] = chosen_subject_id
+                iter_section_subjects.pop(idx)
+
+                chosen_room_id = self.book_and_pop(day, time_period, time_slot)
+                section_schedule[day][time_period][time_slot]['room'] = chosen_room_id
+                break
+
+            elif subject_counter < temp_optimal_subject:
+                optimal_subject = subject_id
+                temp_optimal_subject = subject_counter
+                            
+            if idx+1 == len(iter_section_subjects):
+                optimal_subject = subject_id
+                                
+                self.subject_schedule_counter[day][time_period][time_slot][subject_id] += 1
+                section_schedule[day][time_period][time_slot]['subject'] = optimal_subject
+                iter_section_subjects.pop(idx)
+
+                chosen_room_id = self.book_and_pop(day, time_period, time_slot)
+                section_schedule[day][time_period][time_slot]['room'] = chosen_room_id
+                break
+        return section_schedule
+            
 
         
 class Helper():
