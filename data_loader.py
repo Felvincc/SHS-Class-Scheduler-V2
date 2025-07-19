@@ -27,6 +27,11 @@ class Schedule():
         for room in self.rooms:
             self.all_room_ids.append(room)
 
+        # perhaps make this embedded into the database instead of making it on the fly
+        self.subject_instructors = {}
+        for subject_id in self.subjects:
+            self.subject_instructors[subject_id] = fetch.fetch_subject_instructors(save_id, subject_id)
+
     def generate(self):
         # creates empty room schedule dictonary
         self.room_schedules = {}
@@ -60,6 +65,8 @@ class Schedule():
             for time_period, time_slot in schedule.items():
                 for slot in time_slots:
                     schedule[time_period][slot] = Helper.dict_mapper(all_subject_ids)
+
+        
             
         section_dict = {}
         section_id = 0
@@ -78,7 +85,8 @@ class Schedule():
 
                 result_schedule[section_id] = section_schedule
 
-        print(result_schedule)
+        self.rawschedule = result_schedule
+        return result_schedule
 
     # modifies the section object and room_schedules dict for the assignment
     def assign(self, section):
@@ -105,16 +113,18 @@ class Schedule():
         for day, period_and_time_slots in self.room_schedules_tracker.items():
             for time_period, time_slots in period_and_time_slots.items():
                 for time_slot, room_id in time_slots.items():
-                    temp_optimal_subject = 100
+                    
 
                     if not scheduling_tracker[0]:
                         scheduling_tracker.pop(0)
                         section_schedule[day][time_period][time_slot]['subject'] = None
                         section_schedule[day][time_period][time_slot]['room'] = None
+                        section_schedule[day][time_period][time_slot]['instructor'] = None
                         continue
                     scheduling_tracker.pop(0)
 
-                    section_schedule = self.optimal_search(day, time_period, time_slot, iter_section_subjects, section_schedule, temp_optimal_subject)
+                    # uses some randomizer shit, definitely change that vvv
+                    section_schedule = self.optimal_search(day, time_period, time_slot, iter_section_subjects, section_schedule)
 
         return section_schedule
                     
@@ -124,7 +134,10 @@ class Schedule():
         self.room_schedules_tracker[day][time_period][time_slot].pop(0)
         return chosen_room_id
     
-    def optimal_search(self, day, time_period, time_slot, iter_section_subjects, section_schedule, temp_optimal_subject):
+    def optimal_search(self, day, time_period, time_slot, iter_section_subjects, section_schedule):
+
+        optimal_subject_counter = 100
+        optimal_instructor_counter = 100
         for idx, subject_id in enumerate(iter_section_subjects):
 
             subject_counter = self.subject_schedule_counter[day][time_period][time_slot][subject_id]
@@ -138,13 +151,12 @@ class Schedule():
                 section_schedule[day][time_period][time_slot]['room'] = chosen_room_id
                 break
 
-            elif subject_counter < temp_optimal_subject:
+            elif subject_counter < optimal_subject_counter:
                 optimal_subject = subject_id
-                temp_optimal_subject = subject_counter
+                optimal_subject_counter = subject_counter
                             
             if idx+1 == len(iter_section_subjects):
-                optimal_subject = subject_id
-                                
+               
                 self.subject_schedule_counter[day][time_period][time_slot][subject_id] += 1
                 section_schedule[day][time_period][time_slot]['subject'] = optimal_subject
                 iter_section_subjects.pop(idx)
@@ -152,6 +164,24 @@ class Schedule():
                 chosen_room_id = self.book_and_pop(day, time_period, time_slot)
                 section_schedule[day][time_period][time_slot]['room'] = chosen_room_id
                 break
+
+        # uses randomizer, make it sort through instuctors with the least schedules (or if u find a better way)
+        for idx, instructor_id in enumerate(self.subject_instructors[subject_id]):
+            if self.instructor_schedule_counter[instructor_id][day][time_period][time_slot]:
+                continue
+
+            if self.instructor_subject_counter[instructor_id][subject_id] == 0:
+                random.shuffle(self.subject_instructors[subject_id])
+                section_schedule[day][time_period][time_slot]['instructor'] = instructor_id
+            
+            if self.instructor_subject_counter[instructor_id][subject_id] < optimal_instructor_counter:
+                optimal_instructor_counter = self.instructor_subject_counter[instructor_id][subject_id]
+                optimal_instructor_id = instructor_id
+
+            if idx+1 == len(self.subject_instructors[subject_id]):
+                random.shuffle(self.subject_instructors[subject_id])
+                self.instructor_schedule_counter[optimal_instructor_id][day][time_period][time_slot] = True
+
         return section_schedule
             
 
@@ -209,6 +239,14 @@ class Section():
         return f"course_id='{self.course_id}', section_num='{self.section_num}', section_id='{self.section_id}'"
         
 class Fetch():
+
+    def fetch_subject_instructors(self, save_id, subject_id):
+        cursor.execute("SELECT instructor_id FROM instructor_subjects WHERE subject_id = ? and save_id = ?", (subject_id, save_id))
+        rows = cursor.fetchall()
+        result = []
+        for instructor_id in rows:
+            result.append(instructor_id[0])
+        return result
 
     def fetch_ampm(self, save_id):
         cursor.execute("SELECT am_slot, pm_slot FROM ampm WHERE save_id = ?", (save_id,))
@@ -278,9 +316,65 @@ class Fetch():
         for room_id, room_name in rows:
             result[room_id] = room_name
         return result
+    
+class Scheduleformatter():
+    
+    def formatter(raw_schedule):
+        return_list = []
 
-x = Schedule('test')    
-x.generate()
+        for section_id, schedule in raw_schedule.items():
+            temp_dict = {}
+            temp_dict['section_id'] = section_id
+            temp_dict['strand'] = None
 
 
-#test = Generate()
+            for day in range(1,3):
+                for period in ['am', 'pm']:
+                    for slot in range(1,4):
+                        entry = raw_schedule[section_id][day][period][slot]
+                        subject_id = entry['subject']
+                        room_id = entry['room']
+                        instructor_id = entry['instructor']
+
+                        if subject_id == None:
+                            temp_dict[f'day: {day}, period: {period}, slot: {slot}'] = 'vacant'
+                            continue
+
+                        cursor.execute("SELECT subject_name FROM subjects WHERE subject_id = ?", (subject_id,))
+                        rows = cursor.fetchall()
+                        subject = rows[0][0]
+
+                        cursor.execute("SELECT room_name FROM rooms WHERE room_id = ?", (room_id,))
+                        rows = cursor.fetchall()
+                        room = rows[0][0]
+
+                        cursor.execute("SELECT instructor_name FROM instructors WHERE instructor_id = ?", (instructor_id,))
+                        rows = cursor.fetchall()
+                        instructor = rows[0][0]
+
+                        temp_dict[f'day: {day}, period: {period}, slot: {slot}'] = f'subject: {subject}\nroom: {room}\ninstructor: {instructor}'
+
+            return_list.append(temp_dict)
+
+        return return_list
+
+
+if __name__ == '__main__':
+
+    x = Schedule('test')    
+    raw_schedule = x.generate()
+    csv_schedule = Scheduleformatter(raw_schedule)
+    pass
+    
+    
+    
+
+
+
+
+
+
+
+
+
+

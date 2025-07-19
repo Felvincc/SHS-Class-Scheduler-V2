@@ -4,6 +4,8 @@
 import cmd
 import os
 import sqlite3
+from data_loader import Schedule, Scheduleformatter
+import csv
 
 conn = sqlite3.connect("data.db")
 cursor = conn.cursor()
@@ -26,7 +28,33 @@ class MyCommand(cmd.Cmd):
     def do_generate(self, arg):
         '''Generates class schedules
 Usage: generate <save name>'''
-        pass
+
+        save_name, schedule_name = arg.split()
+        schedule = Schedule(save_name)
+        rawschedule = schedule.generate()
+        processed_schedule = Scheduleformatter.formatter(rawschedule)
+        print(processed_schedule)
+
+        
+        with open(f"{schedule_name}.csv", mode="w", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=['section_id', 'strand',
+                                                      'day: 1, period: am, slot: 1',
+                                                      'day: 1, period: am, slot: 2',
+                                                      'day: 1, period: am, slot: 3',
+                                                      'day: 1, period: pm, slot: 1',
+                                                      'day: 1, period: pm, slot: 2',
+                                                      'day: 1, period: pm, slot: 3',
+                                                      'day: 2, period: am, slot: 1',
+                                                      'day: 2, period: am, slot: 2',
+                                                      'day: 2, period: am, slot: 3',
+                                                      'day: 2, period: pm, slot: 1',
+                                                      'day: 2, period: pm, slot: 2',
+                                                      'day: 2, period: pm, slot: 3',
+                                                      ])
+            writer.writeheader()
+            writer.writerows(processed_schedule)
+
+      
 
     def do_modifydata(self, arg):
         commands = {}
