@@ -143,8 +143,8 @@ class Schedule():
             subject_counter = self.subject_schedule_counter[day][time_period][time_slot][subject_id]
             if subject_counter == 0:
                 chosen_subject_id = subject_id
-                self.subject_schedule_counter[day][time_period][time_slot][subject_id] =+ 1
-                section_schedule[day][time_period][time_slot]['subject'] = chosen_subject_id
+                self.subject_schedule_counter[day][time_period][time_slot][subject_id] += 1     # THIS WAS ORIGINALLY += 1, CHATGPT NOTICED THIS. IF SOMETHING BREAKS IT MIGHT BE THIS
+                section_schedule[day][time_period][time_slot]['subject'] = chosen_subject_id    # THIS IS ME MONTHS AFTER TAKING A BREAK FROM THIS PROJECT
                 iter_section_subjects.pop(idx)
 
                 chosen_room_id = self.book_and_pop(day, time_period, time_slot)

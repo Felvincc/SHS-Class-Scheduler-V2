@@ -181,7 +181,6 @@ Available data types: \nsaves \ninstructors  \ncourse \naddress \nbuildings \nro
         dm.commit_address(save_id, address_data)
         conn.commit()
         
-
 class Queries:
 
     def __init__(self):
@@ -334,16 +333,13 @@ class DataManagement:
             else:
                 num_of_floors = int(input("Enter number of floors in the building> "))
                 rooms = []
-
                 for x in range(num_of_floors):
                     while condition:
                         temp_room = input(f"Enter the rooms in floor {x+1}> ").lower()
                         if temp_room == "next":
                             break
-
                         else:
                             rooms.append(temp_room)
-                
                 temp_address_data = [temp_building, num_of_floors, rooms]
             
             address_data.append(temp_address_data)
